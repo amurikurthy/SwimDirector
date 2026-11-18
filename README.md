@@ -14,19 +14,56 @@ A Docker container that watches your swim meet and points the PTZ for you.
 
 ## Run it
 
+You need a machine with Docker. Save this as `docker-compose.yml` and start it:
+
+```yaml
+services:
+  swimdirector:
+    image: ghcr.io/amurikurthy/swimdirector:latest
+    container_name: swimdirector
+    ports:
+      - "8080:8080"                # admin page and /cmd/... for Companion
+    environment:
+      TZ: "America/Chicago"
+      # first-run defaults only; everything is editable in the admin page afterwards
+      SWIM_NDI_DISCOVERY: "10.100.100.20"   # NDI Discovery Server; empty = mDNS
+      SWIM_OVERVIEW_NDI: "NISZWBOX01"       # static overview camera (GoPro)
+      SWIM_PTZ_NDI: "NISZWBOX02"            # the PTZ's own NDI feed
+      SWIM_CAMERA_HOST: "10.215.230.202"    # Panasonic AW camera IP
+      # SWIM_COMPANION_HOST: "10.0.0.20"    # Bitfocus Companion IP
+    volumes:
+      - ./data:/data               # settings, calibration, what it has learned: back this folder up
+    restart: unless-stopped        # also used by "Save & restart" in the admin page
+```
+
 ```bash
 docker compose up -d
-# admin page: http://<docker-host>:8080
+docker compose logs swimdirector      # startup and what it is doing
 ```
+
+Open the admin page at `http://<docker-host>:8080`.
 
 **Update:** `docker compose pull && docker compose up -d`. Your data in `./data` is kept.
 
-The image (`ghcr.io/amurikurthy/swimdirector`) is built for amd64 and arm64 by GitHub Actions on
-every push to `main`. To build from this checkout instead, uncomment `build: .` in
-`docker-compose.yml` and run `docker compose up -d --build`.
+The image is built for amd64 and arm64 by GitHub Actions on every push to `main`. To build from a
+checkout of this repository instead, uncomment `build: .` in its `docker-compose.yml` and run
+`docker compose up -d --build`.
 
-`docker-compose.yml` sets first-run defaults (NDI Discovery Server, NISZWBOX01 / NISZWBOX02,
-camera IP). Everything else lives in the admin page and is saved in `./data`.
+### Settings
+
+The `environment:` values are first-run defaults only: once `./data/config.yaml` exists, the admin
+page is where you change things.
+
+| Variable | Default | |
+|---|---|---|
+| `SWIM_NDI_DISCOVERY` | empty (mDNS) | NDI Discovery Server IP |
+| `SWIM_OVERVIEW_NDI` | | NDI source name of the static overview camera |
+| `SWIM_PTZ_NDI` | | NDI source name of the PTZ's own feed |
+| `SWIM_CAMERA_HOST` | | Panasonic AW camera IP |
+| `SWIM_COMPANION_HOST` | | Bitfocus Companion IP |
+| `SWIM_LOG` | `INFO` | log level (`DEBUG` for more detail) |
+| `SWIM_DATA` | `/data` | state directory inside the container |
+| `TZ` | UTC | time zone for logs and race history |
 
 Works with Docker Desktop on Windows/macOS and on Linux. With an NDI Discovery Server the normal
 bridge network is fine; only plain mDNS discovery needs `network_mode: host` (Linux).
