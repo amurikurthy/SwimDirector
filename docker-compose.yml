@@ -1,0 +1,21 @@
+services:
+  swimdirector:
+    build: .
+    image: swimdirector:latest
+    container_name: swimdirector
+    restart: unless-stopped          # also used by "Save & restart" in the admin page
+    ports:
+      - "8080:8080"                  # admin page: http://<docker-host>:8080
+    volumes:
+      - ./data:/data                 # settings, calibration, what it has learned
+    environment:
+      TZ: America/Chicago
+      # first-run defaults only; everything is editable in the admin page afterwards
+      SWIM_NDI_DISCOVERY: "10.100.100.20"
+      SWIM_OVERVIEW_NDI: "NISZWBOX01"
+      SWIM_PTZ_NDI: "NISZWBOX02"
+      SWIM_CAMERA_HOST: "10.215.230.202"
+      # SWIM_COMPANION_HOST: "10.0.0.20"
+    # Linux hosts only: use host networking if you need NDI mDNS discovery
+    # (not needed with an NDI Discovery Server)
+    # network_mode: host

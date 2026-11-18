@@ -1,0 +1,372 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SwimDirector</title>
+<style>
+:root{
+  --bg:#0d1117; --panel:#151b23; --panel2:#1b232d; --line:#26303c; --text:#e6edf3; --muted:#8b98a7;
+  --accent:#2fb6c9; --ok:#3fb950; --warn:#d29922; --bad:#f85149; --chip:#222b36;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--text);font:14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+header{display:flex;align-items:center;gap:14px;padding:10px 16px;border-bottom:1px solid var(--line);background:var(--panel);position:sticky;top:0;z-index:5;flex-wrap:wrap}
+header h1{font-size:16px;margin:0;letter-spacing:.3px}
+header h1 span{color:var(--accent)}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chip{background:var(--chip);border:1px solid var(--line);border-radius:999px;padding:3px 10px;font-size:12px;color:var(--muted);display:flex;gap:6px;align-items:center}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--muted)}
+.dot.ok{background:var(--ok)} .dot.warn{background:var(--warn)} .dot.bad{background:var(--bad)}
+.phase{margin-left:auto;font-weight:700;padding:4px 12px;border-radius:6px;background:var(--panel2);border:1px solid var(--line)}
+.phase.race{background:#1f3b23;border-color:#2f6b37;color:#7ee787}
+.phase.ready{background:#3a2f12;border-color:#6b5520;color:#e3b341}
+.phase.finish{background:#3b1f2b;border-color:#6b2f45;color:#ff9bce}
+nav{display:flex;gap:4px;padding:8px 16px 0}
+nav button{background:none;border:none;color:var(--muted);padding:8px 14px;border-bottom:2px solid transparent;cursor:pointer;font-size:14px}
+nav button.on{color:var(--text);border-color:var(--accent)}
+main{padding:12px 16px 40px}
+.tab{display:none}.tab.on{display:block}
+.grid{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);gap:12px}
+@media (max-width:1100px){.grid{grid-template-columns:1fr}}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px}
+.card h2{font-size:13px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin:0 0 10px}
+.view{position:relative;background:#000;border-radius:8px;overflow:hidden;line-height:0}
+.view img{width:100%;height:auto;display:block;min-height:120px}
+.view canvas{position:absolute;inset:0;width:100%;height:100%;cursor:crosshair}
+.view .tag{position:absolute;top:8px;left:8px;background:#000a;padding:3px 8px;border-radius:5px;font-size:12px;line-height:1.4}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.stack{display:flex;flex-direction:column;gap:12px}
+button.b{background:var(--panel2);color:var(--text);border:1px solid var(--line);border-radius:7px;padding:7px 12px;cursor:pointer;font-size:13px}
+button.b:hover{border-color:var(--accent)}
+button.b.on{background:var(--accent);border-color:var(--accent);color:#04161a;font-weight:600}
+button.b.big{padding:10px 16px;font-size:14px}
+button.b.danger{border-color:#5a2727}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.seg button{border:none;border-radius:0;background:var(--panel2);color:var(--text);padding:8px 14px;cursor:pointer}
+.seg button.on{background:var(--accent);color:#04161a;font-weight:700}
+.lanes button{min-width:38px}
+.think{max-height:330px;overflow:auto;font-size:13px;display:flex;flex-direction:column;gap:2px}
+.think div{padding:4px 6px;border-radius:5px;background:var(--panel2)}
+.think div.warn{border-left:3px solid var(--warn)}
+.think time{color:var(--muted);font-variant-numeric:tabular-nums;margin-right:6px}
+table{width:100%;border-collapse:collapse;font-size:13px;font-variant-numeric:tabular-nums}
+td,th{padding:4px 6px;border-bottom:1px solid var(--line);text-align:left}
+th{color:var(--muted);font-weight:500}
+tr.lead td{color:#7ee787;font-weight:600}
+.kv{display:grid;grid-template-columns:max-content 1fr;gap:4px 12px;font-size:13px}
+.kv div:nth-child(odd){color:var(--muted)}
+.muted{color:var(--muted)}
+.big-status{font-size:15px;font-weight:600}
+form .fields{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px 14px}
+label{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--muted)}
+input,select{background:var(--bg);color:var(--text);border:1px solid var(--line);border-radius:6px;padding:7px 8px;font-size:14px}
+input:focus,select:focus{outline:none;border-color:var(--accent)}
+label.cb{flex-direction:row;align-items:center;gap:8px;color:var(--text);font-size:13px}
+.note{font-size:12px;color:var(--muted);margin-top:6px}
+.toast{position:fixed;bottom:16px;right:16px;background:var(--panel2);border:1px solid var(--line);padding:10px 14px;border-radius:8px;display:none;max-width:420px;z-index:9}
+.modebar{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px}
+</style>
+</head>
+<body>
+<header>
+  <h1>Swim<span>Director</span></h1>
+  <div class="chips" id="chips"></div>
+  <div class="phase" id="phase">—</div>
+</header>
+<nav>
+  <button data-tab="live" class="on">Live</button>
+  <button data-tab="calib">Calibration</button>
+  <button data-tab="settings">Settings</button>
+</nav>
+<main>
+<!-- ============================== LIVE -->
+<section class="tab on" id="tab-live">
+  <div class="grid">
+    <div class="stack">
+      <div class="card">
+        <h2>Overview — how the director sees the pool</h2>
+        <div class="view" id="ovwrap"><img id="ovimg" alt="overview"><canvas id="ovcanvas"></canvas>
+          <div class="tag">Click a swimmer to lock onto their lane</div></div>
+      </div>
+      <div class="card">
+        <h2>PTZ — what the camera sees</h2>
+        <div class="view"><img id="ptzimg" alt="ptz"></div>
+      </div>
+    </div>
+    <div class="stack">
+      <div class="card">
+        <h2>Director</h2>
+        <div class="big-status" id="status">—</div>
+        <div class="muted" id="substatus" style="margin:4px 0 10px"></div>
+        <div class="row" style="margin-bottom:10px">
+          <div class="seg" id="trackseg">
+            <button data-v="auto">Auto (races)</button><button data-v="on">Track now</button><button data-v="off">Off</button>
+          </div>
+        </div>
+        <div class="row lanes" id="lanebtns" style="margin-bottom:10px"></div>
+        <div class="row">
+          <button class="b" data-cmd="zoom" data-arg="wider">Wider</button>
+          <button class="b" data-cmd="zoom" data-arg="tighter">Tighter</button>
+          <button class="b" data-cmd="zoom" data-arg="reset">Zoom reset</button>
+          <button class="b danger" data-cmd="race_reset">New race</button>
+        </div>
+      </div>
+      <div class="card">
+        <h2>Thinking</h2>
+        <div class="think" id="think"></div>
+      </div>
+      <div class="card">
+        <h2>Swimmers</h2>
+        <table><thead><tr><th>Lane</th><th>Length</th><th>Position</th><th>Speed</th></tr></thead><tbody id="swim"></tbody></table>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================== CALIBRATION -->
+<section class="tab" id="tab-calib">
+  <div class="grid">
+    <div class="card">
+      <h2>Overview</h2>
+      <div class="modebar" id="clickmodes">
+        <button class="b on" data-m="lock">Click = lock lane</button>
+        <button class="b" data-m="teach">Click = “PTZ is framing this”</button>
+        <button class="b" data-m="corners">Set 4 corners by hand</button>
+        <button class="b" data-m="ignore">Drag = ignore zone</button>
+      </div>
+      <div class="view"><img id="calimg" alt="overview"><canvas id="calcanvas"></canvas></div>
+      <div class="note" id="clickhelp"></div>
+    </div>
+    <div class="stack">
+      <div class="card">
+        <h2>Pool geometry</h2>
+        <div class="row" style="margin-bottom:8px">
+          <button class="b on" id="geoauto">Auto-detect pool</button>
+          <button class="b" data-geo="flip_lanes">Flip lane numbers</button>
+          <button class="b" data-geo="flip_ends">Flip start/far end</button>
+          <button class="b" data-geo="clear_ignore">Clear ignore zones</button>
+        </div>
+        <div class="kv" id="geokv"></div>
+      </div>
+      <div class="card">
+        <h2>PTZ camera model (self-learning)</h2>
+        <div class="row" style="margin-bottom:8px">
+          <button class="b on" id="autocal">Auto-calibrate (sweep)</button>
+          <button class="b" data-cmd="teach_undo">Undo last taught spot</button>
+          <button class="b danger" data-cmd="ptz_reset">Forget everything</button>
+        </div>
+        <div class="kv" id="ptzkv"></div>
+        <div class="note">It also learns by itself: whenever the PTZ (you or the director) looks at swimmers the overview can see, it pairs them up and refines where the camera is mounted.</div>
+      </div>
+      <div class="card">
+        <h2>Learned so far</h2>
+        <div class="kv" id="learnkv"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================== SETTINGS -->
+<section class="tab" id="tab-settings">
+  <form id="settings" class="stack" onsubmit="return false">
+    <div class="card"><h2>NDI</h2><div class="fields">
+      <label>Discovery Server IP <input name="ndi.discovery_server" placeholder="10.100.100.20 (blank = mDNS)"></label>
+    </div><div class="note">Changing this restarts the service.</div></div>
+
+    <div class="card"><h2>Overview camera (GoPro)</h2><div class="fields">
+      <label>Input <select name="overview.type"><option value="ndi">NDI</option><option value="url">URL / file</option></select></label>
+      <label>NDI source <input name="overview.name" list="ndilist" placeholder="pick or type"></label>
+      <label>URL <input name="overview.url" placeholder="rtsp://… or /data/test.mp4"></label>
+    </div></div>
+
+    <div class="card"><h2>PTZ camera</h2><div class="fields">
+      <label>PTZ video input <select name="ptz_feed.type"><option value="ndi">NDI</option><option value="url">URL / file</option></select></label>
+      <label>PTZ NDI source <input name="ptz_feed.name" list="ndilist" placeholder="pick or type"></label>
+      <label>PTZ video URL <input name="ptz_feed.url"></label>
+      <label>Camera IP (Panasonic AW) <input name="camera.host" placeholder="10.215.230.202"></label>
+      <label>Camera user <input name="camera.user"></label>
+      <label>Camera password <input name="camera.password" type="password"></label>
+      <label>Send moves <select name="camera.control"><option value="direct">Directly to the camera</option><option value="companion">Through Companion variables</option></select></label>
+      <label>PTZ view weight (0–1) <input name="ptz_feed.weight" type="number" step="0.05" min="0" max="1"></label>
+    </div><div class="note">Position is always read from the camera. “Through Companion” sets swim_pan / swim_tilt (speed 1–99, 50 = stop) and swim_zoom for a Companion trigger to forward.</div></div>
+
+    <div class="card"><h2>Companion</h2><div class="fields">
+      <label>Companion IP <input name="companion.host" placeholder="10.0.0.20"></label>
+      <label>Port <input name="companion.port" type="number"></label>
+      <label>Variable prefix <input name="companion.variable_prefix"></label>
+      <label>Race start → button <input name="companion.buttons.race_start" placeholder="page/row/column"></label>
+      <label>Race live → button <input name="companion.buttons.race_live" placeholder="e.g. 1/0/3"></label>
+      <label>Leader change → button <input name="companion.buttons.leader_change"></label>
+      <label>Finish → button <input name="companion.buttons.finish"></label>
+      <label>Back to idle → button <input name="companion.buttons.idle"></label>
+    </div><div class="note">Status is pushed as custom variables: phase, tracking, leader, target, mode, lock, override, length (with the prefix). Companion can control the director with GET <code>http://&lt;this-host&gt;:8080/cmd/toggle</code>, <code>/cmd/on</code>, <code>/cmd/off</code>, <code>/cmd/auto</code>, <code>/cmd/leader</code>, <code>/cmd/lane/4</code>, <code>/cmd/wider</code>, <code>/cmd/tighter</code>, <code>/cmd/reset</code>.</div></div>
+
+    <div class="card"><h2>Pool</h2><div class="fields">
+      <label>Length (m) <input name="pool.length_m" type="number" step="0.01"></label>
+      <label>Lanes <input name="pool.lanes" type="number"></label>
+      <label>Lane width (m) <input name="pool.lane_width_m" type="number" step="0.05"></label>
+      <label>First lane number <input name="pool.lane_first" type="number"></label>
+      <label>Outer lane ropes <select name="pool.outer_ropes"><option value="auto">Detect</option><option value="yes">Yes</option><option value="no">No</option></select></label>
+    </div><div class="note">25-yard pool = 22.86 m. After changing the pool, run Auto-detect pool again.</div></div>
+
+    <div class="card"><h2>Director</h2><div class="fields">
+      <label class="cb"><input type="checkbox" name="director.auto"> Follow races automatically</label>
+      <label class="cb"><input type="checkbox" name="director.auto_zoom"> Auto zoom</label>
+      <label>Lead room ahead of swimmer (m) <input name="director.lead_m" type="number" step="0.1"></label>
+      <label>Framing width (m) <input name="director.frame_width_m" type="number" step="0.5"></label>
+      <label>Hands-off after operator moves (s) <input name="director.override_pause_s" type="number" step="0.5"></label>
+      <label>Hold on finish (s) <input name="director.finish_hold_s" type="number" step="0.5"></label>
+      <label>Quiet water before a start (s) <input name="director.start_quiet_s" type="number" step="0.5"></label>
+      <label>Lanes needed to call a start <input name="director.start_min_lanes" type="number"></label>
+      <label>Race start → live delay (s) <input name="director.live_delay_s" type="number" step="0.5"></label>
+    </div></div>
+    <div class="row"><button class="b big on" id="save">Save settings</button><span class="muted" id="savemsg"></span></div>
+  </form>
+  <datalist id="ndilist"></datalist>
+</section>
+</main>
+<div class="toast" id="toast"></div>
+
+<script>
+const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
+let S = null, CFG = null, clickMode = 'lock', corners = [], drag = null;
+
+function toast(msg, ms=3500){ const t=$('#toast'); t.textContent=msg; t.style.display='block'; clearTimeout(t._h); t._h=setTimeout(()=>t.style.display='none', ms); }
+async function api(path, body){
+  const r = await fetch(path, body===undefined?{}:{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  const j = await r.json().catch(()=>({}));
+  if(!r.ok){ toast(j.detail || j.error || ('Error '+r.status)); throw new Error(j.detail); }
+  return j;
+}
+const control = (action,arg) => api('/api/control',{action,arg});
+
+// ---------- tabs
+$$('nav button').forEach(b=>b.onclick=()=>{
+  $$('nav button').forEach(x=>x.classList.toggle('on',x===b));
+  $$('.tab').forEach(t=>t.classList.toggle('on',t.id==='tab-'+b.dataset.tab));
+  startStreams();
+});
+function activeTab(){ return $('nav button.on').dataset.tab; }
+
+// ---------- streams (MJPEG; only the visible ones)
+function startStreams(){
+  const t = activeTab();
+  $('#ovimg').src  = t==='live'  ? '/stream/overview.mjpg' : '';
+  $('#ptzimg').src = t==='live'  ? '/stream/ptz.mjpg' : '';
+  $('#calimg').src = t==='calib' ? '/stream/overview.mjpg' : '';
+}
+
+// ---------- status
+function chip(name, state, title){ return `<span class="chip" title="${title||''}"><span class="dot ${state}"></span>${name}</span>`; }
+function feedState(f){ return f.status==='live'?'ok':(f.status==='not configured'?'':'warn'); }
+function render(){
+  if(!S) return;
+  const f=S.feeds, cam=S.camera, comp=S.companion;
+  $('#chips').innerHTML =
+    chip('Overview '+(f.overview.fps?f.overview.fps+'fps':f.overview.status), feedState(f.overview), f.overview.source||'') +
+    chip('PTZ feed '+(f.ptz.fps?f.ptz.fps+'fps':f.ptz.status), feedState(f.ptz), f.ptz.source||'') +
+    chip('Camera '+(cam.connected?'ok':(cam.error||'offline')), cam.connected?'ok':'bad') +
+    chip('Companion '+(comp.enabled?(comp.connected?'ok':(comp.error||'…')):'off'), comp.enabled?(comp.connected?'ok':'warn'):'') +
+    chip('NDI '+(S.ndi.ok?S.ndi.sources.length+' sources':'unavailable'), S.ndi.ok?'ok':'bad', S.ndi.error||'');
+  const ph=$('#phase'); ph.textContent=S.phase.toUpperCase(); ph.className='phase '+S.phase;
+  let st = S.tracking ? (S.override>0 ? `Operator has the camera (${S.override}s)` : 'Tracking '+(S.target||'— waiting for a swimmer')) : 'Not tracking';
+  $('#status').textContent = st;
+  $('#substatus').textContent = (S.mode==='leader'?'Following the leader':'Locked on lane '+S.lane) +
+    (S.leader?` · leader L${S.leader}`:'') + (S.ptz_lock?' · PTZ view confirms':'') +
+    (S.race?` · race ${S.race.elapsed}s`+(S.race.expected_lengths?` (expect ${S.race.expected_lengths} lengths)`:''):'');
+  const fv = S.force_track===null?'auto':(S.force_track?'on':'off');
+  $$('#trackseg button').forEach(b=>b.classList.toggle('on',b.dataset.v===fv));
+  const n = CFG?CFG.pool.lanes:8, first=CFG?CFG.pool.lane_first:1;
+  if($('#lanebtns').children.length!==n+1){
+    let h=`<button class="b" data-lead>Leader</button>`;
+    for(let i=0;i<n;i++) h+=`<button class="b" data-lane="${first+i}">${first+i}</button>`;
+    $('#lanebtns').innerHTML=h;
+    $('#lanebtns [data-lead]').onclick=()=>control('leader');
+    $$('#lanebtns [data-lane]').forEach(b=>b.onclick=()=>control('lane',+b.dataset.lane));
+  }
+  $('#lanebtns [data-lead]').classList.toggle('on',S.mode==='leader');
+  $$('#lanebtns [data-lane]').forEach(b=>b.classList.toggle('on',S.mode==='lane'&&+b.dataset.lane===S.lane));
+  $('#think').innerHTML = S.think.map(t=>`<div class="${t.level}"><time>${t.t}</time>${esc(t.text)}</div>`).join('');
+  $('#swim').innerHTML = S.swimmers.map(s=>`<tr class="${s.leader?'lead':''}"><td>L${s.lane}${s.leader?' ★':''}</td><td>${s.length}</td><td>${s.x} m ${s.dir>0?'→':s.dir<0?'←':''}</td><td>${Math.abs(s.v).toFixed(2)} m/s</td></tr>`).join('') || '<tr><td colspan=4 class="muted">nobody detected</td></tr>';
+  // calibration panels
+  const g=S.geometry;
+  $('#geokv').innerHTML = kv({'Status': g.busy?'detecting…':(g.set?`set (${g.source})`:'not set'),
+    'Result': g.report||'—', 'Ignore zones': g.ignore, 'Lane 1 side': g.flip_lanes?'flipped':'nearest the camera', 'Start end': g.flip_ends?'flipped':'left of picture'});
+  const m=S.ptz_model;
+  $('#ptzkv').innerHTML = kv({'Status': (m.state||'—')+(m.busy?' (fitting…)':'')+(S.autocal?` · sweeping: ${S.autocal}`:''),
+    'Taught spots': m.teach, 'Samples': m.samples ?? m.frames, 'Explained': m.inliers??'—',
+    'Aim error': m.median_err_deg!=null?m.median_err_deg+'°':'—',
+    'PTZ located at': m.camera_at?`${m.camera_at[0]} m along, ${m.camera_at[1]} m across, ${m.camera_at[2]} m up`:'—'});
+  const L=S.learned;
+  $('#learnkv').innerHTML = kv({'Picture direction': ('k_pan' in L)?'learned':'watching…',
+    'Speed direction': ('c_pan' in L)?'learned':'—', 'Pan speed': L.rate_pan?L.rate_pan+' units/s per step':'—',
+    'Framing you like': L.frame_width_m?L.frame_width_m+' m':'(default)', 'Zoom bands learned': L.fov_bands});
+  $('#autocal').textContent = S.autocal ? 'Stop sweep' : 'Auto-calibrate (sweep)';
+}
+function kv(o){ return Object.entries(o).map(([k,v])=>`<div>${k}</div><div>${esc(String(v))}</div>`).join(''); }
+function esc(s){ return s.replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
+async function poll(){ try{ S = await api('/api/state'); render(); }catch(e){} setTimeout(poll, 700); }
+
+// ---------- live controls
+$$('#trackseg button').forEach(b=>b.onclick=()=>control('track',b.dataset.v));
+$$('[data-cmd]').forEach(b=>b.onclick=()=>control(b.dataset.cmd,b.dataset.arg));
+$('#autocal').onclick=()=>control('autocal', S&&S.autocal?'stop':'start');
+$('#geoauto').onclick=()=>api('/api/geometry',{action:'auto'}).then(()=>toast('Looking for the pool…'));
+$$('[data-geo]').forEach(b=>b.onclick=()=>api('/api/geometry',{action:b.dataset.geo}));
+
+// ---------- clicks on the overview
+function norm(ev, el){ const r=el.getBoundingClientRect(); return [(ev.clientX-r.left)/r.width,(ev.clientY-r.top)/r.height]; }
+$('#ovcanvas').onclick = ev => { const [x,y]=norm(ev,ev.target); api('/api/click',{kind:'lock',x,y}); };
+const help = {lock:'Click a swimmer to lock the PTZ onto that lane.',
+  teach:'Aim and zoom the PTZ on a spot with your joystick, then click that same spot here. A few spread-out spots are enough to get started.',
+  corners:'Click the pool corners in order: 1 start wall / lane-1 side, 2 start wall / last lane, 3 far wall / last lane, 4 far wall / lane-1 side.',
+  ignore:'Drag a box over anything that moves but is not a swimmer (flags, people at the edge).'};
+$$('#clickmodes button').forEach(b=>b.onclick=()=>{ clickMode=b.dataset.m; corners=[]; $$('#clickmodes button').forEach(x=>x.classList.toggle('on',x===b)); $('#clickhelp').textContent=help[clickMode]; drawCal(); });
+$('#clickhelp').textContent=help.lock;
+const cc=$('#calcanvas');
+function drawCal(){
+  const r=cc.getBoundingClientRect(); cc.width=r.width; cc.height=r.height; const g=cc.getContext('2d'); g.clearRect(0,0,cc.width,cc.height);
+  g.fillStyle='#ff4d4d'; g.strokeStyle='#ff4d4d'; g.lineWidth=2; g.font='bold 15px system-ui';
+  corners.forEach(([x,y],i)=>{ g.beginPath(); g.arc(x*cc.width,y*cc.height,6,0,7); g.fill(); g.fillText(i+1,x*cc.width+9,y*cc.height-8); });
+  if(drag&&drag.b){ g.strokeStyle='#ddd'; g.strokeRect(drag.a[0]*cc.width,drag.a[1]*cc.height,(drag.b[0]-drag.a[0])*cc.width,(drag.b[1]-drag.a[1])*cc.height); }
+}
+cc.onmousedown = ev => { if(clickMode==='ignore'){ drag={a:norm(ev,cc)}; } };
+cc.onmousemove = ev => { if(drag){ drag.b=norm(ev,cc); drawCal(); } };
+cc.onmouseup = async ev => {
+  const p = norm(ev,cc);
+  if(clickMode==='ignore' && drag){ const a=drag.a; drag=null; drawCal();
+    if(Math.abs(p[0]-a[0])>0.01 && Math.abs(p[1]-a[1])>0.01){ await api('/api/geometry',{action:'ignore',rect:[Math.min(a[0],p[0]),Math.min(a[1],p[1]),Math.max(a[0],p[0]),Math.max(a[1],p[1])]}); toast('Ignore zone added'); }
+    return; }
+  if(clickMode==='lock'){ api('/api/click',{kind:'lock',x:p[0],y:p[1]}); }
+  else if(clickMode==='teach'){ await api('/api/click',{kind:'teach',x:p[0],y:p[1]}); toast('Spot taught'); }
+  else if(clickMode==='corners'){ corners.push(p); drawCal();
+    if(corners.length===4){ await api('/api/geometry',{action:'corners',points:corners}); toast('Corners saved'); corners=[]; setTimeout(drawCal,300); } }
+};
+window.addEventListener('resize', drawCal);
+
+// ---------- settings
+function flatten(o, p='', out={}){ for(const [k,v] of Object.entries(o)){ const key=p?p+'.'+k:k; if(v&&typeof v==='object'&&!Array.isArray(v)) flatten(v,key,out); else out[key]=v; } return out; }
+async function loadSettings(){
+  CFG = await api('/api/config'); const f=flatten(CFG);
+  $$('#settings [name]').forEach(el=>{ const v=f[el.name]; if(el.type==='checkbox') el.checked=!!v; else el.value = v ?? ''; });
+}
+$('#save').onclick = async () => {
+  const patch={};
+  $$('#settings [name]').forEach(el=>{
+    let v = el.type==='checkbox'?el.checked:el.value;
+    if(el.type==='number') v = v===''?null:Number(v);
+    if(v===null) return;
+    const parts=el.name.split('.'); let o=patch; parts.slice(0,-1).forEach(p=>o=o[p]=o[p]||{}); o[parts.at(-1)]=v;
+  });
+  const r = await api('/api/config', patch);
+  await loadSettings();
+  $('#savemsg').textContent = r.changed.length ? 'Saved: '+r.changed.join(', ') : 'No changes';
+  if(r.restart){ if(confirm('NDI settings changed. Restart SwimDirector now?')){ await api('/api/restart',{}); toast('Restarting…',8000); setTimeout(()=>location.reload(),6000); } }
+};
+setInterval(()=>{ if(S){ $('#ndilist').innerHTML = S.ndi.sources.map(n=>`<option value="${esc(n)}">`).join(''); } }, 2000);
+
+loadSettings(); poll(); startStreams();
+</script>
+</body>
+</html>
