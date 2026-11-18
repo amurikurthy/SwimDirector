@@ -1,21 +1,25 @@
+# SwimDirector - uses the image GitHub Actions publishes to GHCR.
+#   Start:   docker compose up -d
+#   Update:  docker compose pull && docker compose up -d
+#   Admin:   http://<docker-host>:8080
 services:
   swimdirector:
-    build: .
-    image: swimdirector:latest
+    image: ghcr.io/amurikurthy/swimdirector:latest
+    # build: .                     # uncomment to build from this checkout instead
     container_name: swimdirector
-    restart: unless-stopped          # also used by "Save & restart" in the admin page
     ports:
-      - "8080:8080"                  # admin page: http://<docker-host>:8080
-    volumes:
-      - ./data:/data                 # settings, calibration, what it has learned
+      - "8080:8080"                # admin page and /cmd/... for Companion
     environment:
-      TZ: America/Chicago
+      TZ: "America/Chicago"
       # first-run defaults only; everything is editable in the admin page afterwards
-      SWIM_NDI_DISCOVERY: "10.100.100.20"
-      SWIM_OVERVIEW_NDI: "NISZWBOX01"
-      SWIM_PTZ_NDI: "NISZWBOX02"
-      SWIM_CAMERA_HOST: "10.215.230.202"
-      # SWIM_COMPANION_HOST: "10.0.0.20"
-    # Linux hosts only: use host networking if you need NDI mDNS discovery
-    # (not needed with an NDI Discovery Server)
-    # network_mode: host
+      SWIM_NDI_DISCOVERY: "10.100.100.20"   # NDI Discovery Server; empty = mDNS (see network_mode below)
+      SWIM_OVERVIEW_NDI: "NISZWBOX01"       # static overview camera (GoPro)
+      SWIM_PTZ_NDI: "NISZWBOX02"            # the PTZ's own NDI feed
+      SWIM_CAMERA_HOST: "10.215.230.202"    # Panasonic AW camera IP
+      # SWIM_COMPANION_HOST: "10.0.0.20"    # Bitfocus Companion IP
+      # SWIM_LOG: "INFO"                    # DEBUG for more detail in `docker compose logs swimdirector`
+    volumes:
+      - ./data:/data               # settings, calibration, what it has learned: back this folder up
+    restart: unless-stopped        # also used by "Save & restart" in the admin page
+    # network_mode: host           # Linux only: needed for plain NDI mDNS discovery (not with a Discovery Server);
+    #                              # remove the ports: section above when you use it

@@ -15,9 +15,15 @@ A Docker container that watches your swim meet and points the PTZ for you.
 ## Run it
 
 ```bash
-docker compose up -d --build
+docker compose up -d
 # admin page: http://<docker-host>:8080
 ```
+
+**Update:** `docker compose pull && docker compose up -d`. Your data in `./data` is kept.
+
+The image (`ghcr.io/amurikurthy/swimdirector`) is built for amd64 and arm64 by GitHub Actions on
+every push to `main`. To build from this checkout instead, uncomment `build: .` in
+`docker-compose.yml` and run `docker compose up -d --build`.
 
 `docker-compose.yml` sets first-run defaults (NDI Discovery Server, NISZWBOX01 / NISZWBOX02,
 camera IP). Everything else lives in the admin page and is saved in `./data`.
